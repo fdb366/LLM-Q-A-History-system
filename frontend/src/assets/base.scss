@@ -1,0 +1,123 @@
+// =========================================
+// 基础变量与重置样式
+// =========================================
+
+// 颜色调色板 (仿 Vue.js 主题)
+$vt-c-white: #ffffff;
+$vt-c-white-soft: #f8f8f8;
+$vt-c-white-mute: #f2f2f2;
+
+$vt-c-black: #181818;
+$vt-c-black-soft: #222222;
+$vt-c-black-mute: #282828;
+
+$vt-c-indigo: #2c3e50;
+$vt-c-indigo-soft: #3a4e64;
+$vt-c-indigo-mute: #4a5e74;
+
+$vt-c-divider-light-1: rgba(60, 60, 60, 0.29);
+$vt-c-divider-light-2: rgba(60, 60, 60, 0.12);
+$vt-c-divider-dark-1: rgba(84, 84, 84, 0.65);
+$vt-c-divider-dark-2: rgba(84, 84, 84, 0.48);
+
+$vt-c-text-light-1: $vt-c-indigo;
+$vt-c-text-light-2: rgba(60, 60, 60, 0.66);
+$vt-c-text-dark-1: $vt-c-white;
+$vt-c-text-dark-2: rgba(235, 235, 235, 0.64);
+
+// 项目主题色 (可覆盖 Element Plus 变量)
+$primary-color: #409eff;
+$success-color: #67c23a;
+$warning-color: #e6a23c;
+$danger-color: #f56c6c;
+$info-color: #909399;
+
+$text-color: #303133;
+$text-color-secondary: #606266;
+$border-color: #dcdfe6;
+$bg-color: #f5f7fa;
+
+// 定义 CSS 变量 (供全局使用)
+:root {
+  --primary-color: #{$primary-color};
+  --success-color: #{$success-color};
+  --warning-color: #{$warning-color};
+  --danger-color: #{$danger-color};
+  --info-color: #{$info-color};
+  --text-color: #{$text-color};
+  --text-color-secondary: #{$text-color-secondary};
+  --border-color: #{$border-color};
+  --bg-color: #{$bg-color};
+
+  --vt-c-white: #{$vt-c-white};
+  --vt-c-white-soft: #{$vt-c-white-soft};
+  --vt-c-white-mute: #{$vt-c-white-mute};
+  --vt-c-black: #{$vt-c-black};
+  --vt-c-black-soft: #{$vt-c-black-soft};
+  --vt-c-black-mute: #{$vt-c-black-mute};
+  --vt-c-indigo: #{$vt-c-indigo};
+  --vt-c-divider-light-1: #{$vt-c-divider-light-1};
+  --vt-c-divider-light-2: #{$vt-c-divider-light-2};
+  --vt-c-divider-dark-1: #{$vt-c-divider-dark-1};
+  --vt-c-divider-dark-2: #{$vt-c-divider-dark-2};
+  --vt-c-text-light-1: #{$vt-c-text-light-1};
+  --vt-c-text-light-2: #{$vt-c-text-light-2};
+  --vt-c-text-dark-1: #{$vt-c-text-dark-1};
+  --vt-c-text-dark-2: #{$vt-c-text-dark-2};
+}
+
+// 全局重置
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  font-size: 16px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+body {
+  min-height: 100vh;
+  font-family: 'Helvetica Neue', Helvetica, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', Arial, sans-serif;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--text-color);
+  background-color: var(--bg-color);
+  transition: color 0.3s, background-color 0.3s;
+}
+
+a {
+  text-decoration: none;
+  color: var(--primary-color);
+  transition: color 0.2s;
+
+  &:hover {
+    color: darken($primary-color, 10%);
+  }
+}
+
+// 滚动条整体样式（全局默认）
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 3px;
+  transition: background 0.3s;
+
+  &:hover {
+    background: rgba(0, 0, 0, 0.3);
+  }
+}
