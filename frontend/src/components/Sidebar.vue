@@ -1,102 +1,300 @@
-<!-- src/components/AnchorSidebar.vue -->
 <template>
-  <aside class="anchor-sidebar scrollbar-thin" v-show="anchorItems.length">
-    <div class="anchor-content">
-      <el-anchor :container="container" scroll-offset="80" direction="vertical">
-        <el-anchor-link
-          v-for="item in anchorItems"
-          :key="item.id"
-          :href="`#msg-${item.id}`"
+  <aside class="sidebar" :class="{ collapsed: isCollapsed }">
+    <div class="sidebar-header">
+      <div class="header-left" v-if="!isCollapsed">
+        <h3>历史对话</h3>
+      </div>
+      <div class="header-actions">
+        <el-button 
+          :type="isCollapsed ? 'text' : 'primary'" 
+          :size="isCollapsed ? 'large' : 'small'"
+          @click="createNewChat" 
+          :loading="creating"
+          :icon="Plus"
+          circle
+          v-if="isCollapsed"
+        />
+        <el-button 
+          v-else
+          type="primary" 
+          size="small" 
+          @click="createNewChat" 
+          :loading="creating"
         >
-          <el-tooltip :content="item.fullTitle" placement="left" :show-after="300">
-            <span class="anchor-title">{{ item.shortTitle }}</span>
-          </el-tooltip>
-        </el-anchor-link>
-      </el-anchor>
+          + 新对话
+        </el-button>
+        <el-button 
+          :icon="isCollapsed ? 'Expand' : 'Fold'" 
+          @click="toggleCollapse"
+          circle
+          size="small"
+        />
+      </div>
+    </div>
+    <div class="sidebar-content scrollbar-thin" v-show="!isCollapsed">
+      <div v-for="group in groupedConversations" :key="group.label" class="conv-group">
+        <div class="group-label">{{ group.label }}</div>
+        <div
+          v-for="conv in group.list"
+          :key="conv.id"
+          class="conv-item"
+          :class="{ active: currentConvId === conv.id }"
+          @click="selectConversation(conv.id)"
+        >
+          <el-icon><ChatDotRound /></el-icon>
+          <span class="title ellipsis">{{ conv.title }}</span>
+          <el-icon class="delete-icon" @click.stop="deleteConversation(conv.id)"><Delete /></el-icon>
+        </div>
+      </div>
     </div>
   </aside>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
-import { ElAnchor, ElAnchorLink, ElTooltip } from 'element-plus'
+import { ref, computed, onMounted } from 'vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { ChatDotRound, Delete, Plus, Fold, Expand } from '@element-plus/icons-vue'
 import { useChatStore } from '../pinia/modules/chat'
-
-const props = defineProps<{
-  container?: HTMLElement          // 滚动容器，用于锚点定位
-}>()
+import { useUserStore } from '../pinia/modules/user'
+import { conversationApi } from '../api/conversation'
 
 const chatStore = useChatStore()
-const messages = computed(() => chatStore.messages)
+const userStore = useUserStore()
+const creating = ref(false)
+const isCollapsed = ref(false)
 
-// 仅过滤用户消息，生成锚点数据
-const anchorItems = computed(() => {
-  return messages.value
-    .filter(msg => msg.role === 'user')
-    .map(msg => {
-      const fullTitle = msg.content
-      const shortTitle = fullTitle.length > 12 ? fullTitle.slice(0, 12) + '…' : fullTitle
+const currentConvId = computed(() => chatStore.currentSessionId ? parseInt(chatStore.currentSessionId) : null)
+const conversations = computed(() => chatStore.sessions)
+
+const groupedConversations = computed(() => {
+  const groups: { label: string; list: any[] }[] = []
+  const now = new Date()
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime()
+  const yesterday = today - 86400000
+  const weekAgo = today - 7 * 86400000
+  const monthAgo = today - 30 * 86400000
+
+  const todayList: any[] = []
+  const yesterdayList: any[] = []
+  const weekList: any[] = []
+  const monthList: any[] = []
+  const olderList: any[] = []
+
+  conversations.value.forEach(conv => {
+    const updated = new Date(conv.updated_at).getTime()
+    if (updated >= today) {
+      todayList.push(conv)
+    } else if (updated >= yesterday) {
+      yesterdayList.push(conv)
+    } else if (updated >= weekAgo) {
+      weekList.push(conv)
+    } else if (updated >= monthAgo) {
+      monthList.push(conv)
+    } else {
+      olderList.push(conv)
+    }
+  })
+
+  if (todayList.length) groups.push({ label: '今天', list: todayList })
+  if (yesterdayList.length) groups.push({ label: '昨天', list: yesterdayList })
+  if (weekList.length) groups.push({ label: '7天', list: weekList })
+  if (monthList.length) groups.push({ label: '30天', list: monthList })
+  if (olderList.length) groups.push({ label: '更早', list: olderList })
+  return groups
+})
+
+const loadConversations = async () => {
+  if (!userStore.token) return
+  try {
+    const data = await conversationApi.getList()
+    chatStore.setSessions(data)
+  } catch (error) {
+    console.error('加载会话失败', error)
+  }
+}
+
+const createNewChat = async () => {
+  creating.value = true
+  try {
+    const newConv = await conversationApi.create({ title: '新对话' })
+    chatStore.addSession(newConv)
+    chatStore.setCurrentSession(newConv.id)
+    chatStore.clearMessages()
+  } catch (error) {
+    ElMessage.error('创建失败')
+  } finally {
+    creating.value = false
+  }
+}
+
+const selectConversation = (id: number) => {
+  if (currentConvId.value === id) return
+  chatStore.setCurrentSession(id)
+  chatStore.clearMessages()
+  loadMessages(id)
+}
+
+const loadMessages = async (convId: number) => {
+  try {
+    const msgs = await conversationApi.getMessages(convId)
+    const formatted = msgs.map((m: any) => {
+      const content = m.content
+      const thinkingMatch = content.match(/<think\ufe0f?(.*?)<\/think>/s)
+      
+      let thinking = ''
+      let summary = ''
+      
+      if (thinkingMatch) {
+        thinking = thinkingMatch[1].trim()
+        summary = content.replace(/<think\ufe0f?.*?<\/think>/s, '').trim()
+      } else {
+        summary = content.trim()
+      }
+      
       return {
-        id: msg.id,
-        fullTitle,
-        shortTitle,
+        id: String(m.id),
+        role: m.role,
+        content: m.content,
+        timestamp: new Date(m.created_at).getTime(),
+        thinking: thinking,
+        summary: summary,
+        isThinkingExpanded: true
       }
     })
+    chatStore.setMessages(formatted)
+  } catch (error) {
+    console.error('加载消息失败:', error)
+    ElMessage.error('加载消息失败')
+  }
+}
+
+const deleteConversation = async (id: number) => {
+  try {
+    await ElMessageBox.confirm('确定删除该对话吗？')
+    await conversationApi.delete(id)
+    chatStore.removeSession(id)
+    if (currentConvId.value === id) {
+      chatStore.setCurrentSession(null)
+      chatStore.clearMessages()
+    }
+    ElMessage.success('删除成功')
+  } catch (error) {
+    if (error !== 'cancel') ElMessage.error('删除失败')
+  }
+}
+
+const toggleCollapse = () => {
+  isCollapsed.value = !isCollapsed.value
+}
+
+onMounted(() => {
+  loadConversations()
 })
 </script>
 
 <style scoped lang="scss">
-.anchor-sidebar {
-  width: 140px;
+.sidebar {
+  width: 260px;
   height: 100%;
-  border-left: 1px solid var(--border-color);
-  background-color: #fff;
+  background-color: #f9f9f9;
+  border-right: 1px solid var(--border-color);
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  transition: width 0.3s;
 
-  
+  &.collapsed {
+    width: 60px;
 
-  .anchor-content {
-    flex: 1;
-    overflow-y: auto;
-    padding: 8px 0;
+    .sidebar-header {
+      justify-content: center;
+      padding: 16px 0;
+    }
 
-    :deep(.el-anchor) {
-      .el-anchor__item {
-        margin-bottom: 4px;
-      }
+    .header-left {
+      display: none;
+    }
 
-      .el-anchor__link {
-        padding: 6px 12px;
-        border-radius: 4px;
-        transition: background-color 0.2s;
-        font-size: 13px;
-        line-height: 1.4;
-        color: #606266;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-
-        &:hover {
-          background-color: #f5f7fa;
-        }
-
-        &.is-active {
-          background-color: #ecf5ff;
-          color: #409eff;
-          font-weight: 500;
-        }
-      }
+    .sidebar-content {
+      display: none;
     }
   }
 }
 
-.anchor-title {
-  display: block;
-  width: 110px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.sidebar-header {
+  padding: 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid var(--border-color);
+
+  .header-left {
+    h3 {
+      margin: 0;
+      font-size: 16px;
+    }
+  }
+
+  .header-actions {
+    display: flex;
+    gap: 8px;
+  }
+}
+
+.sidebar-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px;
+}
+
+.conv-group {
+  margin-bottom: 16px;
+
+  .group-label {
+    font-size: 12px;
+    color: #999;
+    padding: 4px 8px;
+  }
+
+  .conv-item {
+    display: flex;
+    align-items: center;
+    padding: 8px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background 0.2s;
+    margin: 2px 0;
+
+    &:hover {
+      background-color: rgba(0, 0, 0, 0.05);
+      .delete-icon {
+        opacity: 1;
+      }
+    }
+
+    &.active {
+      background-color: #e6f4ff;
+    }
+
+    .el-icon {
+      margin-right: 8px;
+      font-size: 16px;
+    }
+
+    .title {
+      flex: 1;
+      font-size: 14px;
+    }
+
+    .delete-icon {
+      opacity: 0;
+      transition: opacity 0.2s;
+      font-size: 14px;
+      color: #999;
+
+      &:hover {
+        color: #f56c6c;
+      }
+    }
+  }
 }
 </style>

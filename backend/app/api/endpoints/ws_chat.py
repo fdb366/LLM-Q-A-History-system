@@ -174,24 +174,22 @@ async def websocket_chat(websocket: WebSocket):
 现在请回答："""
                 messages.append({"role": "user", "content": prompt})
 
-                # 流式请求 Ollama
+                # 流式请求 Ollama - 实时流式
                 full_answer = ""
                 stream_success = False
-                
+
                 try:
-                    # 使用LLM服务的流式生成方法
-                    for chunk in llm_service.stream_generate(messages):
+                    async for chunk in llm_service.async_stream_generate(messages):
                         if chunk:
                             full_answer += chunk
                             await websocket.send_json({"chunk": chunk, "done": False})
                             stream_success = True
+
                 except Exception as e:
                     print(f"Ollama流式请求失败: {e}")
-                    # 如果流式失败，尝试非流式请求作为降级方案
                     try:
-                        content = llm_service.generate(messages)
+                        content = await asyncio.to_thread(llm_service.generate, messages)
                         full_answer = content
-                        # 一次性发送完整内容
                         await websocket.send_json({"chunk": content, "done": False})
                         stream_success = True
                     except Exception as fallback_error:
@@ -222,7 +220,12 @@ async def websocket_chat(websocket: WebSocket):
                 conv.message_count += 2
                 db.commit()
 
-                await websocket.send_json({"done": True, "sources": sources, "processing_time": elapsed})
+                await websocket.send_json({
+                    "done": True,
+                    "sources": sources,
+                    "processing_time": elapsed,
+                    "conversation_title": conv.title,
+                })
 
             except Exception as e:
                 db.rollback()

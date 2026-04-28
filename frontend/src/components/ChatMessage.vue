@@ -1,10 +1,10 @@
 <template>
-  <div class="chat-message" :class="[role]">
-    <div class="avatar">
+  <div class="chat-message" :class="[role]" :id="id">
+    <!-- <div class="avatar">
       <el-avatar :size="40" :src="avatar" />
-    </div>
+    </div> -->
     <div class="content-wrapper">
-      <div class="name">{{ displayName }}</div>
+      <!-- <div class="name">{{ displayName }}</div> -->
       <div class="bubble">
         <template v-if="role === 'assistant' && typing && !isDone">
           <TMarkdownPreview :defaultVal="displayedText" />
@@ -12,7 +12,7 @@
         </template>
         <template v-else-if="role === 'assistant' && thinking">
           <!-- 思考内容折叠显示 -->
-          <div class="thinking-section">
+          <div class="thinking-section" v-if="thinking">
             <div class="thinking-header" @click="toggleThinking">
               <span class="thinking-icon">{{ isThinkingExpanded ? '▼' : '▶' }}</span>
               <span class="thinking-label">思考过程</span>
@@ -39,14 +39,15 @@ import { computed } from 'vue'
 import { useTyping } from '../composables/useTyping'
 
 const props = defineProps<{
+  id?: string
   role: 'user' | 'assistant'
   content: string
   avatar?: string
   name?: string
-  typing?: boolean // 是否正在打字（仅 assistant 使用）
-  thinking?: string // 思考内容
-  summary?: string // 总结内容
-  isThinkingExpanded?: boolean // 思考内容是否展开
+  typing?: boolean
+  thinking?: string
+  summary?: string
+  isThinkingExpanded?: boolean
 }>()
 
 const emit = defineEmits(['toggleThinking'])
@@ -95,13 +96,13 @@ const avatarUrl = computed(() => {
   align-items: center;
   cursor: pointer;
   padding: 8px 12px;
-  background-color: #f5f5f5;
   border-radius: 6px;
   margin-bottom: 8px;
   transition: background-color 0.2s;
   
   &:hover {
-    background-color: #e8e8e8;
+    background-color: rgb(242.5, 248.6518324607, 255);
+;
   }
 }
 
@@ -119,7 +120,6 @@ const avatarUrl = computed(() => {
 
 .thinking-content {
   padding: 12px;
-  background-color: #f9f9f9;
   border-radius: 6px;
   border-left: 3px solid #409eff;
   margin-bottom: 8px;

@@ -47,3 +47,15 @@
   display: table;
   clear: both;
 }
+
+// Markdown 样式覆盖 (使用 !important 覆盖组件默认样式)
+.vuepress-markdown-body blockquote {
+  display: none !important;
+}
+
+.vuepress-markdown-body:not(.custom) {
+  padding: 0 !important;
+}
+.vuepress-markdown-body {
+  background-color: transparent !important;
+}

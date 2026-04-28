@@ -20,6 +20,8 @@ export const useMessageStore = defineStore('message', () => {
   const error = ref<string | null>(null)
   /** 当前会话ID */
   const conversationId = ref<number | null>(null)
+  /** 当前会话标题 */
+  const conversationTitle = ref<string | null>(null)
 
   /**
    * 设置连接状态
@@ -43,6 +45,14 @@ export const useMessageStore = defineStore('message', () => {
    */
   const setStreaming = (value: boolean) => {
     streaming.value = value
+  }
+
+  /**
+   * 设置当前消息片段（单个chunk）
+   * @param chunk 消息片段
+   */
+  const setChunk = (chunk: string) => {
+    currentChunk.value = chunk
   }
 
   /**
@@ -85,6 +95,14 @@ export const useMessageStore = defineStore('message', () => {
   }
 
   /**
+   * 设置会话标题
+   * @param title 会话标题
+   */
+  const setConversationTitle = (title: string) => {
+    conversationTitle.value = title
+  }
+
+  /**
    * 重置所有状态
    */
   const reset = () => {
@@ -95,6 +113,7 @@ export const useMessageStore = defineStore('message', () => {
     sources.value = []
     error.value = null
     conversationId.value = null
+    conversationTitle.value = null
   }
 
   return {
@@ -105,14 +124,17 @@ export const useMessageStore = defineStore('message', () => {
     sources,
     error,
     conversationId,
+    conversationTitle,
     setConnected,
     setAuthenticated,
     setStreaming,
+    setChunk,
     appendChunk,
     clearChunk,
     setSources,
     setError,
     setConversationId,
+    setConversationTitle,
     reset,
   }
 })
