@@ -32,6 +32,7 @@ class MessageOut(BaseModel):
     role: str          # 'user' 或 'assistant'
     content: str
     created_at: datetime
+    source_documents: Optional[List[dict]] = None
 
     class Config:
         from_attributes = True

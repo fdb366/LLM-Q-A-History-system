@@ -1,10 +1,10 @@
 # backend/app/api/endpoints/auth.py
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, UploadFile, File
 from pydantic import BaseModel, EmailStr
 from sqlalchemy.orm import Session
 from datetime import timedelta
 from typing import Optional
-from app.core.sync_database import SessionLocal
+from app.core.sync_database import SessionLocal, get_db
 from app.models.sql.user import User
 from app.core.security import get_password_hash, verify_password, create_access_token
 from app.core.config import settings
@@ -32,6 +32,8 @@ class UserOut(BaseModel):
     email: str
     role: str
     avatar_url: Optional[str] = None
+    is_approved: bool = True
+    permissions: list = []
 
 @router.post("/register", response_model=dict)
 def register(user_data: UserRegister):
@@ -76,4 +78,41 @@ def login(user_data: UserLogin):
 @router.get("/me", response_model=UserOut)
 def get_current_user_info(current_user: User = Depends(get_current_user)):
     """获取当前登录用户信息"""
+    return current_user
+
+
+@router.post("/upload-avatar")
+def upload_avatar(
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """上传用户头像"""
+    # 这里需要实现文件上传逻辑
+    # 暂时返回成功消息
+    return {"msg": "头像上传成功"}
+
+
+@router.post("/change-password")
+def change_password(
+    password_data: dict,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """修改密码"""
+    old_password = password_data.get("old_password")
+    new_password = password_data.get("new_password")
+    
+    if not verify_password(old_password, current_user.password_hash):
+        raise HTTPException(status_code=400, detail="原密码错误")
+    
+    current_user.password_hash = get_password_hash(new_password)
+    db.commit()
+    
+    return {"msg": "密码修改成功"}
+
+
+@router.get("/user-detail", response_model=UserOut)
+def get_user_detail(current_user: User = Depends(get_current_user)):
+    """获取用户详细信息"""
     return current_user

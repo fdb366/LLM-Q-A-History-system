@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from pydantic import BaseModel
-from app.core.database import SessionLocal
+from app.core.sync_database import get_db
 from app.models.sql.feedback import Feedback, FeedbackStats
 from app.models.sql.message import Message
 from app.models.sql.conversation import Conversation
@@ -65,24 +65,14 @@ class FeedbackStatsResponse(BaseModel):
     low_score_count: int
 
 
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
 
-
-@router.post("/feedbacks")
+@router.post("")
 def create_feedback(
     feedback: FeedbackCreate,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """提交反馈"""
-    if not current_user.is_approved:
-        raise HTTPException(status_code=403, detail="Account not approved")
-
     message_id = int(feedback.message_id)
 
     message = db.query(Message).filter(Message.id == message_id).first()
@@ -137,20 +127,17 @@ def create_feedback(
     }
 
 
-@router.get("/feedbacks/my", response_model=List[FeedbackResponse])
+@router.get("/my", response_model=List[FeedbackResponse])
 def get_my_feedbacks(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """获取当前用户的所有反馈"""
-    if not current_user.is_approved:
-        raise HTTPException(status_code=403, detail="Account not approved")
-
     feedbacks = db.query(Feedback).filter(Feedback.user_id == current_user.id).all()
     return feedbacks
 
 
-@router.get("/feedbacks/stats", response_model=List[FeedbackStatsResponse])
+@router.get("/stats", response_model=List[FeedbackStatsResponse])
 def get_feedback_stats(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
@@ -175,7 +162,7 @@ def get_feedback_stats(
     return result
 
 
-@router.get("/feedbacks/low-score")
+@router.get("/low-score")
 def get_low_score_feedbacks(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
@@ -201,7 +188,7 @@ def get_low_score_feedbacks(
     return result
 
 
-@router.get("/feedbacks/manage")
+@router.get("/manage")
 def get_all_feedbacks_for_management(
     rating_filter: Optional[int] = None,
     current_user: User = Depends(require_roles(["admin", "teacher"])),
@@ -290,7 +277,7 @@ def get_all_feedbacks_for_management(
     return result
 
 
-@router.get("/feedbacks/manage/{feedback_id}", response_model=FeedbackDetailResponse)
+@router.get("/manage/{feedback_id}", response_model=FeedbackDetailResponse)
 def get_feedback_detail(
     feedback_id: int,
     current_user: User = Depends(require_roles(["admin", "teacher"])),
@@ -368,7 +355,7 @@ def get_feedback_detail(
     }
 
 
-@router.delete("/feedbacks/{feedback_id}")
+@router.delete("/{feedback_id}")
 def delete_feedback(
     feedback_id: int,
     current_user: User = Depends(require_roles(["admin"])),
@@ -449,7 +436,7 @@ def _create_feedback_notifications(db: Session, feedback: Feedback):
 
 
 # 新增审核相关 API
-@router.post("/feedbacks/{feedback_id}/review")
+@router.post("/{feedback_id}/review")
 def review_feedback(
     feedback_id: int,
     review_data: dict,
